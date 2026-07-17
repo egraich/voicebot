@@ -6,43 +6,6 @@ from aiogram.enums import ParseMode
 
 import config
 from handlers import router
-
-async def main():
-    """
-    Главная точка входа. Инициализирует логирование, объекты бота и запускает поллинг.
-    """
-    # 1. Применяем конфигурацию логирования из config.py
-    config.setup_logging()
-    logger = logging.getLogger(__name__)
-    
-    logger.info("Инициализация VoiceBot v1...")
-    
-    # 2. Создаем объект бота
-    # DefaultBotProperties позволяет установить режим парсинга HTML по умолчанию для всех сообщений
-    bot = Bot(
-        token=config.BOT_TOKEN, 
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-    )
-    
-    # 3. Создаем диспетчер (обработчик событий)
-    dp = Dispatcher()
-    
-    # Подключаем роутер с нашими хэндлерами (из handlers.py)
-    dp.include_router(router)
-    
-    # 4. Запускаем бота
-    try:
-        logger.info("Бот успешно запущен и начал слушать обновления (Polling).")
-        # Скипаем накопившиеся апдейты, пока бот был выключен (опционально)
-        await bot.delete_webhook(drop_pending_updates=True)
-        # Начинаем опрос серверов Telegram
-        await dp.start_polling(bot)
-    except Exception as e:
-        logger.critical(f"Критическая ошибка при запуске: {e}", exc_info=True)
-    finally:
-        logger.info("Остановка бота...")
-        await bot.session.close()
-
 if __name__ == "__main__":
     try:
         asyncio.run(main())
