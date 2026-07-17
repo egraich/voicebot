@@ -60,8 +60,12 @@ async def handle_media(message: Message, bot: Bot):
     try:
         file_info = await bot.get_file(file_id)
         _, ext = os.path.splitext(file_info.file_path)
-        if not ext:
-            ext = ".ogg" if message.voice else ".mp4"
+        ext = ext.lower()
+
+        if ext == ".oga" or message.voice:
+            ext = ".ogg"
+        elif not ext:
+            ext = ".mp4"
 
         input_file_path = os.path.join(config.TEMP_DIR, f"input_{unique_id}{ext}")
         audio_file_path = os.path.join(config.TEMP_DIR, f"audio_{unique_id}.flac")
