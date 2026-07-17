@@ -11,11 +11,10 @@ if not BOT_TOKEN or not GROQ_API_KEY:
     raise ValueError("Критическая ошибка: BOT_TOKEN или GROQ_API_KEY не найдены в .env!")
 
 
-MAX_FILE_SIZE_MB = 20  # Ограничение Telegram Bot API (в мегабайтах)
+MAX_FILE_SIZE_MB = 20
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-GROQ_MODEL = "whisper-large-v3"  # Выбранная модель (не турбо, максимальная точность)
-TEMP_DIR = "temp_media" # Папка для временных файлов
-
+GROQ_MODEL = "whisper-large-v3"
+TEMP_DIR = "temp_media"
 
 class UI:
     START_MESSAGE = (
@@ -37,9 +36,6 @@ class UI:
     BTN_SHOW = "Показать текст"
     BTN_HIDE = "Скрыть текст"
 
-# ==========================================
-# 4. НАСТРОЙКА ПРОДВИНУТОГО ЛОГИРОВАНИЯ
-# ==========================================
 def setup_logging():
     """
     Настраивает продвинутое логирование с таймстампами и уровнями доступа.
