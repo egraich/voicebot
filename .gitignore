@@ -1,5 +1,6 @@
-.env
 venv/
+__pycache__/
 *.pyc
-__pycashe__/
-*.db
+.env
+voice_stats.db
+temp_media/
