@@ -1,6 +1,5 @@
 import aiosqlite
 import config
-from typing import Optional
 
 async def init_db() -> None:
     """Initialize SQLite database with WAL mode and create necessary tables."""
@@ -32,7 +31,7 @@ async def save_transcription(msg_key: str, text: str) -> None:
         await db.execute("INSERT INTO BOT_STATS (action) VALUES (?)", ("transcription_saved",))
         await db.commit()
 
-async def get_transcription(msg_key: str) -> Optional[str]:
+async def get_transcription(msg_key: str) -> str | None:
     """Retrieve transcription text from cache database by message key."""
     async with aiosqlite.connect(config.DB_PATH) as db:
         async with db.execute("SELECT text FROM BUTTON_CACHE WHERE msg_key = ?", (msg_key,)) as cursor:
