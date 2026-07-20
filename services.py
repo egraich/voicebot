@@ -34,19 +34,28 @@ async def extract_audio(input_path: str, output_path: str) -> bool:
         return False
 
 async def get_duration(file_path: str) -> int:
-    """Read the duration of any downloaded media file with ffprobe."""
+    """Read duration using ffprobe checking both format and streams."""
     try:
         process = await asyncio.create_subprocess_exec(
-            'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
-            '-of', 'default=noprint_wrappers=1:nokey=1', file_path,
+            'ffprobe', '-v', 'error',
+            '-show_entries', 'format=duration:stream=duration',
+            '-of', 'default=noprint_wrappers=1:nokey=1',
+            file_path,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL
+            stderr=asyncio.subprocess.PIPE
         )
         stdout, _ = await process.communicate()
-        if process.returncode == 0:
-            return int(float(stdout.decode().strip()))
+        if process.returncode == 0 and stdout:
+            lines = stdout.decode().strip().splitlines()
+            for line in lines:
+                val = line.strip()
+                if val and val != "N/A":
+                    try:
+                        return int(float(val))
+                    except ValueError:
+                        continue
     except Exception as e:
-        logger.error(f"Failed to extract file duration: {e}")
+        logger.error(f"Failed to extract duration: {e}")
     return 0
 
 async def transcribe_audio(audio_path: str) -> str | None:
