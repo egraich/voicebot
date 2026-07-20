@@ -10,7 +10,8 @@ services:
     env_file:
       - ../.env
     volumes:
-      - ../voicebot.db:/app/voicebot.db
+      - /root/projects/sharing/tg-voicebot:/root/projects/sharing/tg-voicebot
+      - /root/projects/bots/voicebot/voice_stats.db:/app/voice_stats.db
     networks:
       - voicenet
 
