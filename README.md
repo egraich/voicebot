@@ -4,7 +4,7 @@ Telegram bot that transcribes voice messages, video notes, audio files, and musi
 
 <img width="1481" height="1014" alt="image" src="https://github.com/user-attachments/assets/9f2c64b5-be70-43c9-b375-e4f4c77427e1" />
 
-[Try VoiceBot on Telegram](https://t.me/egvoicebot)
+[Try VoiceBot on Telegram!](https://t.me/egvoicebot)
 
 ## Quick Start
 
@@ -69,4 +69,4 @@ Send or forward any voice message, video note, audio track, or document to [@egv
 * [Aiogram 3](https://github.com/aiogram/aiogram) — Async Telegram Bot API framework.
 * [Groq API](https://groq.com/) — Fast speech recognition endpoint.
 * [FFmpeg](https://ffmpeg.org/) — Multimedia processing framework.
-* [aiosqlite](https://github.com/omnilib/aiosqlite) — Async SQLite driver for Python.
+* [aiosqlite](https://github.com/omnilib/aiosqlite) — Async SQLite libriary for Python.
