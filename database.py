@@ -15,6 +15,7 @@ async def init_db() -> None:
         await db.execute('''
             CREATE TABLE IF NOT EXISTS BOT_STATS (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
                 file_type TEXT NOT NULL,
                 duration INTEGER NOT NULL,
                 username TEXT NOT NULL,
@@ -35,6 +36,7 @@ async def save_transcription(msg_key: str, text: str) -> None:
         await db.commit()
 
 async def save_stats(
+    user_id: int,
     file_type: str, 
     duration: int, 
     username: str, 
@@ -44,10 +46,20 @@ async def save_stats(
     """Log performance metrics and metadata."""
     async with aiosqlite.connect(config.DB_PATH) as db:
         await db.execute('''
-            INSERT INTO BOT_STATS (file_type, duration, username, file_size, processing_time)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (file_type, duration, username, file_size, processing_time))
+            INSERT INTO BOT_STATS (user_id, file_type, duration, username, file_size, processing_time)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (user_id, file_type, duration, username, file_size, processing_time))
         await db.commit()
+
+async def get_user_today_duration(user_id: int) -> int:
+    """Get total duration used by a specific user today (UTC)."""
+    async with aiosqlite.connect(config.DB_PATH) as db:
+        async with db.execute('''
+            SELECT SUM(duration) FROM BOT_STATS 
+            WHERE user_id = ? AND date(TIME) = date('now')
+        ''', (user_id,)) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row and row[0] else 0
 
 async def get_transcription(msg_key: str) -> str | None:
     """Retrieve transcription text by message key."""
