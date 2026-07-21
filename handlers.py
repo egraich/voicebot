@@ -2,6 +2,8 @@ import os
 import uuid
 import time
 import logging
+import asyncio
+from datetime import datetime, UTC
 from aiogram import Router, Bot, F
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.filters import CommandStart, Command
@@ -72,6 +74,36 @@ async def handle_media(message: Message, bot: Bot) -> None:
         await message.reply(config.UI.FILE_TOO_BIG)
         return
 
+    user_id = message.from_user.id
+    if user_id != config.ADMIN_ID:
+        today_sec = await database.get_user_today_duration(user_id)
+        if today_sec + duration > config.DAILY_LIMIT_SECONDS:
+            now = datetime.now(UTC)
+            sec_to_midnight = 86400 - (now.hour * 3600 + now.minute * 60 + now.second)
+            h_left = sec_to_midnight // 3600
+            m_left = (sec_to_midnight % 3600) // 60
+            
+            limit_h = config.DAILY_LIMIT_SECONDS // 3600
+            limit_unit = config.UNIT_H if limit_h > 0 else config.UNIT_M
+            limit_val = limit_h if limit_h > 0 else config.DAILY_LIMIT_SECONDS // 60
+            
+            if message.chat.type == "private":
+                await message.reply(config.UI.LIMIT_EXCEEDED_PM.format(
+                    limit=limit_val, unit=limit_unit, h=h_left, m=m_left
+                ))
+            else:
+                username = message.from_user.username or message.from_user.first_name
+                msg = await message.reply(config.UI.LIMIT_EXCEEDED_GROUP.format(username=username))
+                
+                async def del_msg(m: Message) -> None:
+                    await asyncio.sleep(config.MSG_AUTO_DELETE_SECONDS)
+                    try:
+                        await m.delete()
+                    except Exception:
+                        pass
+                asyncio.create_task(del_msg(msg))
+            return
+
     status_msg = await message.reply(config.UI.PROCESSING, parse_mode="HTML")
     
     unique_id = str(uuid.uuid4())
@@ -119,6 +151,7 @@ async def handle_media(message: Message, bot: Bot) -> None:
             rounded_size_mb = round(file_size / (1024 * 1024), 2)
             
             await database.save_stats(
+                user_id=user_id,
                 file_type=file_type,
                 duration=duration,
                 username=user_display,
