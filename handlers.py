@@ -16,6 +16,15 @@ import database
 router = Router()
 logger = logging.getLogger(__name__)
 
+_semaphore = None
+
+def get_semaphore() -> asyncio.Semaphore:
+    """Get or create asyncio semaphore."""
+    global _semaphore
+    if _semaphore is None:
+        _semaphore = asyncio.Semaphore(config.MAX_CONCURRENT_TASKS)
+    return _semaphore
+
 @router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     """Handle incoming start commands."""
@@ -106,77 +115,78 @@ async def handle_media(message: Message, bot: Bot) -> None:
 
     status_msg = await message.reply(config.UI.PROCESSING, parse_mode="HTML")
     
-    unique_id = str(uuid.uuid4())
-    input_file_path = None
-    audio_file_path = None
-    
-    try:
-        file_info = await bot.get_file(file_id)
-        _, ext = os.path.splitext(file_info.file_path)
-        ext = ext.lower()
+    async with get_semaphore():
+        unique_id = str(uuid.uuid4())
+        input_file_path = None
+        audio_file_path = None
+        
+        try:
+            file_info = await bot.get_file(file_id)
+            _, ext = os.path.splitext(file_info.file_path)
+            ext = ext.lower()
 
-        if ext == ".oga" or message.voice:
-            ext = ".ogg"
-        elif not ext:
-            ext = ".mp4" if is_video else ".mp3"
+            if ext == ".oga" or message.voice:
+                ext = ".ogg"
+            elif not ext:
+                ext = ".mp4" if is_video else ".mp3"
 
-        input_file_path = os.path.join(config.TEMP_DIR, f"input_{unique_id}{ext}")
-        audio_file_path = os.path.join(config.TEMP_DIR, f"audio_{unique_id}.flac")
-        
-        logger.info(f"Downloading file {file_id} from user {message.from_user.id}")
-        await bot.download(file=file_info, destination=input_file_path)
-        
-        if duration == 0:
-            duration = await services.get_duration(input_file_path)
+            input_file_path = os.path.join(config.TEMP_DIR, f"input_{unique_id}{ext}")
+            audio_file_path = os.path.join(config.TEMP_DIR, f"audio_{unique_id}.flac")
             
-        target_audio_path = input_file_path
-        
-        if is_video:
-            success = await services.extract_audio(input_file_path, audio_file_path)
-            if not success:
-                raise RuntimeError("Audio extraction process failed")
-            target_audio_path = audio_file_path
+            logger.info(f"Downloading file {file_id} from user {message.from_user.id}")
+            await bot.download(file=file_info, destination=input_file_path)
             
-        start_time = time.time()
-        transcription_text = await services.transcribe_audio(target_audio_path)
-        processing_time = round(time.time() - start_time, 2)
-        
-        if transcription_text:
-            cache_key = f"{status_msg.chat.id}_{status_msg.message_id}"
-            await database.save_transcription(cache_key, transcription_text)
+            if duration == 0:
+                duration = await services.get_duration(input_file_path)
+                
+            target_audio_path = input_file_path
             
-            username = message.from_user.username
-            user_display = f"@{username}" if username else message.from_user.first_name
+            if is_video:
+                success = await services.extract_audio(input_file_path, audio_file_path)
+                if not success:
+                    raise RuntimeError("Audio extraction process failed")
+                target_audio_path = audio_file_path
+                
+            start_time = time.time()
+            transcription_text = await services.transcribe_audio(target_audio_path)
+            processing_time = round(time.time() - start_time, 2)
             
-            rounded_size_mb = round(file_size / (1024 * 1024), 2)
-            
-            await database.save_stats(
-                user_id=user_id,
-                file_type=file_type,
-                duration=duration,
-                username=user_display,
-                file_size=rounded_size_mb,
-                processing_time=processing_time
-            )
-            
-            await status_msg.edit_text(
-                text=config.UI.SUCCESS_TITLE,
-                parse_mode="HTML",
-                reply_markup=keyboards.get_show_text_kb(status_msg.message_id)
-            )
-        else:
+            if transcription_text:
+                cache_key = f"{status_msg.chat.id}_{status_msg.message_id}"
+                await database.save_transcription(cache_key, transcription_text)
+                
+                username = message.from_user.username
+                user_display = f"@{username}" if username else message.from_user.first_name
+                
+                rounded_size_mb = round(file_size / (1024 * 1024), 2)
+                
+                await database.save_stats(
+                    user_id=user_id,
+                    file_type=file_type,
+                    duration=duration,
+                    username=user_display,
+                    file_size=rounded_size_mb,
+                    processing_time=processing_time
+                )
+                
+                await status_msg.edit_text(
+                    text=config.UI.SUCCESS_TITLE,
+                    parse_mode="HTML",
+                    reply_markup=keyboards.get_show_text_kb(status_msg.message_id)
+                )
+            else:
+                await status_msg.edit_text(config.UI.ERROR_GENERIC)
+
+        except Exception as e:
+            logger.error(f"Media processing failed: {e}", exc_info=True)
             await status_msg.edit_text(config.UI.ERROR_GENERIC)
-
-    except Exception as e:
-        logger.error(f"Media processing failed: {e}", exc_info=True)
-        await status_msg.edit_text(config.UI.ERROR_GENERIC)
-        
-    finally:
-        if input_file_path and os.path.exists(input_file_path):
-            os.remove(input_file_path)
-        if audio_file_path and os.path.exists(audio_file_path):
-            os.remove(audio_file_path)
-        logger.info(f"Temporary workspace cleared for {unique_id}.")
+            
+        finally:
+            if input_file_path and os.path.exists(input_file_path):
+                os.remove(input_file_path)
+            if audio_file_path and os.path.exists(audio_file_path):
+                os.remove(audio_file_path)
+            logger.info(f"Temporary workspace cleared for {unique_id}.")
 
 @router.callback_query(F.data.startswith("show_"))
 async def process_show_text(callback: CallbackQuery) -> None:
