@@ -139,13 +139,10 @@ async def handle_media(message: Message, bot: Bot) -> None:
             if duration == 0:
                 duration = await services.get_duration(input_file_path)
                 
-            target_audio_path = input_file_path
-            
-            if is_video:
-                success = await services.extract_audio(input_file_path, audio_file_path)
-                if not success:
-                    raise RuntimeError("Audio extraction process failed")
-                target_audio_path = audio_file_path
+            success = await services.extract_audio(input_file_path, audio_file_path)
+            if not success:
+                raise RuntimeError("Audio extraction process failed")
+            target_audio_path = audio_file_path
                 
             start_time = time.time()
             transcription_text = await services.transcribe_audio(target_audio_path)
@@ -178,8 +175,7 @@ async def handle_media(message: Message, bot: Bot) -> None:
                         reply_markup=keyboards.get_show_text_kb(status_msg.message_id)
                     )
                 else:
-                    # Отправляем чистый текст, отключаем HTML-парсинг чтобы избежать ошибок с символами < >
-                    safe_text = transcription_text[:4096] # Телеграм лимит на сообщение
+                    safe_text = transcription_text[:4096] 
                     await status_msg.edit_text(
                         text=safe_text,
                         parse_mode=None
