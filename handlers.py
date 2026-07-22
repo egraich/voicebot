@@ -152,9 +152,6 @@ async def handle_media(message: Message, bot: Bot) -> None:
             processing_time = round(time.time() - start_time, 2)
             
             if transcription_text:
-                cache_key = f"{status_msg.chat.id}_{status_msg.message_id}"
-                await database.save_transcription(cache_key, transcription_text)
-                
                 username = message.from_user.username
                 user_display = f"@{username}" if username else message.from_user.first_name
                 
@@ -169,11 +166,24 @@ async def handle_media(message: Message, bot: Bot) -> None:
                     processing_time=processing_time
                 )
                 
-                await status_msg.edit_text(
-                    text=config.UI.SUCCESS_TITLE,
-                    parse_mode="HTML",
-                    reply_markup=keyboards.get_show_text_kb(status_msg.message_id)
-                )
+                is_private = message.chat.type == "private"
+                use_buttons = is_private and config.ENABLE_PM_BUTTONS
+                
+                if use_buttons:
+                    cache_key = f"{status_msg.chat.id}_{status_msg.message_id}"
+                    await database.save_transcription(cache_key, transcription_text)
+                    await status_msg.edit_text(
+                        text=config.UI.SUCCESS_TITLE,
+                        parse_mode="HTML",
+                        reply_markup=keyboards.get_show_text_kb(status_msg.message_id)
+                    )
+                else:
+                    # Отправляем чистый текст, отключаем HTML-парсинг чтобы избежать ошибок с символами < >
+                    safe_text = transcription_text[:4096] # Телеграм лимит на сообщение
+                    await status_msg.edit_text(
+                        text=safe_text,
+                        parse_mode=None
+                    )
             else:
                 await status_msg.edit_text(config.UI.ERROR_GENERIC)
 
