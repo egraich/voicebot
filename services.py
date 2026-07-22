@@ -6,7 +6,7 @@ import config
 
 groq_client = AsyncGroq(
     api_key=config.GROQ_API_KEY,
-    timeout=60.0
+    timeout=180.0
 )
 logger = logging.getLogger(__name__)
 
